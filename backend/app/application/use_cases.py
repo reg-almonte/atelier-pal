@@ -132,11 +132,13 @@ class GenerateOutfitRecommendationsUseCase:
         self, data: RecommendationInput
     ) -> tuple[ColorToken, list[OutfitRecommendation]]:
         base_token = self._resolve_base_token(data)
+        locked = self._resolve_locked_slots(data.locked_slots)
         recs = await self._ai_stylist.generate_pairings(
             base_token,
             self._palette,
             base_slot=data.base_slot,
             occasion=data.occasion,
+            locked_slots=locked,
         )
         self._telemetry.record_event(
             "ai_recommendations_generated",

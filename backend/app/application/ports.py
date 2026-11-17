@@ -45,6 +45,7 @@ class AIStylistPort(ABC):
         *,
         base_slot: GarmentSlot,
         occasion: Occasion,
+        locked_slots: dict[GarmentSlot, ColorToken] | None = None,
     ) -> list[OutfitRecommendation]:
         """Generate AI-curated outfit recommendations."""
 

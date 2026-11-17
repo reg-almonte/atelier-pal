@@ -36,13 +36,17 @@ export function App() {
           <div>
             <ColorSelectorPanel
               palette={studio.palette}
-              selectedToken={studio.selectedToken}
+              activeSlot={studio.activeSlot}
+              lockedTokens={studio.lockedTokens}
+              lockedCount={studio.lockedCount}
+              activeRecommendation={studio.activeRecommendation}
               customMatch={studio.customMatch}
-              baseSlot={studio.baseSlot}
               occasion={studio.occasion}
+              onSelectSlot={studio.setActiveSlot}
+              onUnlockSlot={studio.unlockSlot}
+              onResetLocks={studio.resetAllLocks}
               onSelectToken={studio.selectToken}
               onMatchCustomHex={studio.matchCustomHex}
-              onChangeSlot={studio.setBaseSlot}
               onChangeOccasion={studio.setOccasion}
             />
           </div>
@@ -56,6 +60,9 @@ export function App() {
                 ? studio.savedLookIds.has(studio.activeRecommendation.id)
                 : false
             }
+            activeSlot={studio.activeSlot}
+            lockedSlots={studio.lockedSlots}
+            onSelectSlot={studio.setActiveSlot}
             onSelectSkinTone={studio.setSelectedSkinTone}
             onSelectBelt={studio.setSelectedBelt}
             onSave={studio.saveLook}
@@ -114,6 +121,12 @@ export function App() {
               </div>
             )}
 
+            {studio.lockedCount === 0 && (
+              <div className="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-6 text-center text-xs text-stone-600">
+                Select any garment slot on the left (Top, Bottom, Outerwear, or Footwear) and pick a color to start building your outfit.
+              </div>
+            )}
+
             {/* Track A: Computed Color Math */}
             {showComputed && (
               <div className="space-y-3">
@@ -147,7 +160,7 @@ export function App() {
                         isSaved={studio.savedLookIds.has(rec.id)}
                         isActive={studio.activeRecommendationId === rec.id}
                         lockedSlots={studio.lockedSlots}
-                        onSelect={(r) => studio.setActiveRecommendationId(r.id)}
+                        onSelect={studio.selectRecommendation}
                         onToggleLock={studio.toggleLockSlot}
                         onSave={studio.saveLook}
                       />
@@ -228,7 +241,8 @@ export function App() {
                         isSaved={studio.savedLookIds.has(rec.id)}
                         isActive={studio.activeRecommendationId === rec.id}
                         lockedSlots={studio.lockedSlots}
-                        onSelect={(r) => studio.setActiveRecommendationId(r.id)}
+                        onSelect={studio.selectRecommendation}
+                        onToggleLock={studio.toggleLockSlot}
                         onSave={studio.saveLook}
                       />
                     ))}

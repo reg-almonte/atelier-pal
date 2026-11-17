@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCheck, Calculator, Sparkles } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Calculator, Lock, Sparkles } from 'lucide-react';
 import {
   BELT_PALETTE,
   isComputedSource,
@@ -6,6 +6,7 @@ import {
   SKIN_TONES,
   STRATEGY_LABELS,
   type BeltOption,
+  type GarmentSlot,
   type OutfitRecommendation,
   type SkinTone,
 } from '../../domain/models';
@@ -15,6 +16,9 @@ interface HumanModelStageProps {
   selectedSkinTone: SkinTone;
   selectedBelt: BeltOption;
   isSaved: boolean;
+  activeSlot?: GarmentSlot;
+  lockedSlots?: Partial<Record<GarmentSlot, string>>;
+  onSelectSlot?: (slot: GarmentSlot) => void;
   onSelectSkinTone: (tone: SkinTone) => void;
   onSelectBelt: (belt: BeltOption) => void;
   onSave: (rec: OutfitRecommendation) => void;
@@ -27,6 +31,9 @@ export function HumanModelStage({
   selectedSkinTone,
   selectedBelt,
   isSaved,
+  activeSlot,
+  lockedSlots = {},
+  onSelectSlot,
   onSelectSkinTone,
   onSelectBelt,
   onSave,
@@ -348,32 +355,50 @@ export function HumanModelStage({
 
         {/* 5-Slot Summary Strip */}
         <div
-          className="grid w-full grid-cols-3 gap-1.5 rounded-xl border border-[#E2DDD2] bg-white/85 px-2.5 py-2 backdrop-blur-sm sm:grid-cols-5"
+          className="grid w-full grid-cols-2 gap-1.5 rounded-xl border border-[#E2DDD2] bg-white/85 px-2.5 py-2 backdrop-blur-sm"
           aria-label="Selected outfit summary"
         >
-          <SummarySlot label="Top" value={topItem?.color_name ?? '—'} hex={topItem?.hex ?? null} />
+          <SummarySlot
+            label="Top"
+            value={topItem?.color_name ?? '—'}
+            hex={topItem?.hex ?? null}
+            isLocked={Boolean(lockedSlots.top)}
+            isActive={activeSlot === 'top'}
+            onClick={onSelectSlot ? () => onSelectSlot('top') : undefined}
+          />
           <SummarySlot
             label="Outerwear"
             value={outerwearItem ? outerwearItem.color_name : 'None'}
             hex={outerwearItem?.hex ?? null}
             dimmed={!hasOuterwear}
-          />
-          <SummarySlot
-            label="Belt"
-            value={hasBelt ? selectedBelt.name : 'None'}
-            hex={selectedBelt.hex}
-            dimmed={!hasBelt}
+            isLocked={Boolean(lockedSlots.outerwear)}
+            isActive={activeSlot === 'outerwear'}
+            onClick={onSelectSlot ? () => onSelectSlot('outerwear') : undefined}
           />
           <SummarySlot
             label="Bottom"
             value={bottomItem?.color_name ?? '—'}
             hex={bottomItem?.hex ?? null}
+            isLocked={Boolean(lockedSlots.bottom)}
+            isActive={activeSlot === 'bottom'}
+            onClick={onSelectSlot ? () => onSelectSlot('bottom') : undefined}
           />
           <SummarySlot
             label="Footwear"
             value={footwearItem?.color_name ?? '—'}
             hex={footwearItem?.hex ?? null}
+            isLocked={Boolean(lockedSlots.footwear)}
+            isActive={activeSlot === 'footwear'}
+            onClick={onSelectSlot ? () => onSelectSlot('footwear') : undefined}
           />
+          <div className="col-span-2 border-t border-[#E2DDD2]/70 pt-1">
+            <SummarySlot
+              label="Belt"
+              value={hasBelt ? selectedBelt.name : 'None'}
+              hex={selectedBelt.hex}
+              dimmed={!hasBelt}
+            />
+          </div>
         </div>
       </div>
 
@@ -426,21 +451,54 @@ interface SummarySlotProps {
   value: string;
   hex: string | null;
   dimmed?: boolean;
+  isLocked?: boolean;
+  isActive?: boolean;
+  onClick?: () => void;
 }
 
-function SummarySlot({ label, value, hex, dimmed = false }: SummarySlotProps) {
-  return (
-    <div className={`flex min-w-0 items-center gap-1.5 transition-opacity ${dimmed ? 'opacity-45' : ''}`}>
+function SummarySlot({
+  label,
+  value,
+  hex,
+  dimmed = false,
+  isLocked = false,
+  isActive = false,
+  onClick,
+}: SummarySlotProps) {
+  const content = (
+    <>
       <span
         className="h-[11px] w-[11px] shrink-0 rounded-full border border-[#1C1B18]/25"
         style={{ backgroundColor: hex ?? 'transparent' }}
       />
-      <div className="flex min-w-0 flex-col">
-        <span className="text-[10px] uppercase tracking-[0.05em] leading-[1.15] text-[#6E6A61]">
+      <div className="flex min-w-0 flex-col text-left">
+        <span className="flex items-center gap-0.5 text-[10px] uppercase tracking-[0.05em] leading-[1.15] text-[#6E6A61]">
           {label}
+          {isLocked && <Lock className="h-2.5 w-2.5 text-[#1C1B18]" />}
         </span>
         <span className="truncate text-[11px] font-semibold text-[#1C1B18]">{value}</span>
       </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`Pick color for ${label}`}
+        className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 transition ${
+          isActive ? 'bg-[#1C1B18]/10 ring-1 ring-[#1C1B18]/40' : 'hover:bg-[#1C1B18]/5'
+        } ${dimmed ? 'opacity-50' : ''}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={`flex min-w-0 items-center gap-1.5 px-1.5 py-1 transition-opacity ${dimmed ? 'opacity-45' : ''}`}>
+      {content}
     </div>
   );
 }

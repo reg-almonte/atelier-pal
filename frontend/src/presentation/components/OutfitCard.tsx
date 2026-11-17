@@ -138,7 +138,11 @@ export function OutfitCard({
             return (
               <li
                 key={`${item.slot}-${idx}`}
-                className="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2"
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 transition ${
+                  isLocked
+                    ? 'border-stone-300 bg-stone-100/80'
+                    : 'border-stone-100 bg-stone-50/80'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
                   <span
@@ -146,23 +150,30 @@ export function OutfitCard({
                     style={{ backgroundColor: item.hex }}
                   />
                   <div>
-                    <p className="text-xs font-semibold text-stone-800">
-                      {item.color_name}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-stone-800">
+                        {item.color_name}
+                      </p>
+                      {isLocked && (
+                        <span className="rounded bg-stone-900 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
+                          Locked
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-stone-500">
                       {SLOT_LABELS[item.slot]} · {item.proportion_percentage}%
                     </p>
                   </div>
                 </div>
 
-                {computed && onToggleLock && (
+                {onToggleLock && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleLock(item.slot, item.matched_token_id);
                     }}
-                    title={isLocked ? 'Unlock slot' : 'Lock slot for remix'}
+                    title={isLocked ? 'Unlock slot' : 'Lock this color'}
                     aria-label={isLocked ? `Unlock ${SLOT_LABELS[item.slot]} slot` : `Lock ${SLOT_LABELS[item.slot]} slot`}
                     aria-pressed={isLocked}
                     className={`rounded-md p-1.5 transition ${

@@ -18,6 +18,27 @@ import { IndexedDBLookRepository } from '../../infrastructure/indexeddb/IndexedD
 
 export type SourceFilter = 'all' | 'math_engine' | 'ollama_ai';
 
+export const BUILDABLE_SLOTS: GarmentSlot[] = [
+  'top',
+  'bottom',
+  'outerwear',
+  'footwear',
+];
+
+function findNextOpenSlot(
+  locked: Partial<Record<GarmentSlot, ColorToken>>,
+  current: GarmentSlot,
+): GarmentSlot {
+  const startIdx = BUILDABLE_SLOTS.indexOf(current);
+  for (let offset = 1; offset <= BUILDABLE_SLOTS.length; offset++) {
+    const candidate = BUILDABLE_SLOTS[(startIdx + offset) % BUILDABLE_SLOTS.length];
+    if (!locked[candidate]) {
+      return candidate;
+    }
+  }
+  return current;
+}
+
 export function useStylingStudio() {
   const apiClient = useMemo(() => new FastApiHttpClient('/api/v1'), []);
   const lookStorage = useMemo(
@@ -26,11 +47,13 @@ export function useStylingStudio() {
   );
 
   const [palette, setPalette] = useState<ColorToken[]>([]);
-  const [selectedToken, setSelectedToken] = useState<ColorToken | null>(null);
+  const [activeSlot, setActiveSlot] = useState<GarmentSlot>('top');
+  const [anchorSlot, setAnchorSlot] = useState<GarmentSlot>('top');
+  const [lockedTokens, setLockedTokens] = useState<Partial<Record<GarmentSlot, ColorToken>>>(
+    {},
+  );
   const [customMatch, setCustomMatch] = useState<ColorMatchResult | null>(null);
-  const [baseSlot, setBaseSlot] = useState<GarmentSlot>('top');
   const [occasion, setOccasion] = useState<Occasion>('smart_casual');
-  const [lockedSlots, setLockedSlots] = useState<Partial<Record<GarmentSlot, string>>>({});
   const [remixSeed, setRemixSeed] = useState<number>(0);
 
   const [computedRecs, setComputedRecs] = useState<OutfitRecommendation[]>([]);
@@ -51,6 +74,37 @@ export function useStylingStudio() {
   const [isOllamaModalOpen, setIsOllamaModalOpen] = useState<boolean>(false);
 
   const aiRequestSeq = useRef(0);
+  const preferredSourceRef = useRef<'math_engine' | 'ollama_ai'>('math_engine');
+
+  const lockedSlots = useMemo<Partial<Record<GarmentSlot, string>>>(() => {
+    const result: Partial<Record<GarmentSlot, string>> = {};
+    for (const slot of BUILDABLE_SLOTS) {
+      const token = lockedTokens[slot];
+      if (token) {
+        result[slot] = token.id;
+      }
+    }
+    return result;
+  }, [lockedTokens]);
+
+  const { baseSlot, selectedToken } = useMemo(() => {
+    const anchorToken = lockedTokens[anchorSlot];
+    if (anchorToken) {
+      return { baseSlot: anchorSlot, selectedToken: anchorToken };
+    }
+    for (const slot of BUILDABLE_SLOTS) {
+      const token = lockedTokens[slot];
+      if (token) {
+        return { baseSlot: slot, selectedToken: token };
+      }
+    }
+    return { baseSlot: activeSlot, selectedToken: null };
+  }, [lockedTokens, anchorSlot, activeSlot]);
+
+  const lockedCount = useMemo(
+    () => BUILDABLE_SLOTS.filter((slot) => Boolean(lockedTokens[slot])).length,
+    [lockedTokens],
+  );
 
   const refreshAIStatus = useCallback(async () => {
     try {
@@ -88,7 +142,11 @@ export function useStylingStudio() {
         setSavedLooks(looks);
         const defaultToken =
           colors.find((c) => c.id === 'midnight-navy') ?? colors[0] ?? null;
-        setSelectedToken(defaultToken);
+        if (defaultToken) {
+          setLockedTokens({ top: defaultToken });
+          setAnchorSlot('top');
+          setActiveSlot('bottom');
+        }
       } catch (err) {
         if (!active) return;
         setComputedError(
@@ -103,7 +161,11 @@ export function useStylingStudio() {
 
   // Track A: Computed Recommendations (fast, deterministic)
   useEffect(() => {
-    if (!selectedToken) return;
+    if (!selectedToken) {
+      setComputedRecs([]);
+      setComputedLoading(false);
+      return;
+    }
     let active = true;
     setComputedLoading(true);
     setComputedError(null);
@@ -135,7 +197,12 @@ export function useStylingStudio() {
 
   // Track B: AI Recommendations (async, graceful degradation)
   const fetchAIRecs = useCallback(
-    async (token: ColorToken, slot: GarmentSlot, occ: Occasion) => {
+    async (
+      token: ColorToken,
+      slot: GarmentSlot,
+      occ: Occasion,
+      locks: Partial<Record<GarmentSlot, string>>,
+    ) => {
       const seq = ++aiRequestSeq.current;
       setAiLoading(true);
       setAiError(null);
@@ -145,6 +212,7 @@ export function useStylingStudio() {
           base_token_id: token.id,
           base_slot: slot,
           occasion: occ,
+          locked_slots: locks,
         });
         if (seq !== aiRequestSeq.current) return;
         setAiRecs(res.recommendations);
@@ -168,7 +236,11 @@ export function useStylingStudio() {
   );
 
   useEffect(() => {
-    if (!selectedToken) return;
+    if (!selectedToken) {
+      setAiRecs([]);
+      setAiLoading(false);
+      return;
+    }
     if (aiStatus && !aiStatus.available) {
       setAiRecs([]);
       setAiError({
@@ -177,44 +249,76 @@ export function useStylingStudio() {
       });
       return;
     }
-    void fetchAIRecs(selectedToken, baseSlot, occasion);
-  }, [selectedToken, baseSlot, occasion, aiStatus, fetchAIRecs]);
+    void fetchAIRecs(selectedToken, baseSlot, occasion, lockedSlots);
+  }, [selectedToken, baseSlot, occasion, lockedSlots, aiStatus, fetchAIRecs]);
 
-  const selectToken = useCallback((token: ColorToken) => {
-    setSelectedToken(token);
-    setCustomMatch(null);
-    setLockedSlots({});
-    setRemixSeed(0);
-  }, []);
+  const assignTokenToSlot = useCallback(
+    (slot: GarmentSlot, token: ColorToken) => {
+      setLockedTokens((prev) => {
+        const next = { ...prev, [slot]: token };
+        setActiveSlot(findNextOpenSlot(next, slot));
+        return next;
+      });
+      setAnchorSlot((prevAnchor) => (lockedTokens[prevAnchor] ? prevAnchor : slot));
+      setRemixSeed(0);
+    },
+    [lockedTokens],
+  );
+
+  const selectToken = useCallback(
+    (token: ColorToken) => {
+      setCustomMatch(null);
+      assignTokenToSlot(activeSlot, token);
+    },
+    [activeSlot, assignTokenToSlot],
+  );
 
   const matchCustomHex = useCallback(
     async (hexColor: string) => {
       try {
         const match = await apiClient.matchColor(hexColor);
         setCustomMatch(match);
-        setSelectedToken(match.matched_token);
-        setLockedSlots({});
-        setRemixSeed(0);
+        assignTokenToSlot(activeSlot, match.matched_token);
       } catch (err) {
         setComputedError(
           err instanceof Error ? err.message : 'Could not match custom hex color.',
         );
       }
     },
-    [apiClient],
+    [activeSlot, apiClient, assignTokenToSlot],
   );
 
-  const toggleLockSlot = useCallback((slot: GarmentSlot, tokenId: string) => {
-    setLockedSlots((prev) => {
+  const unlockSlot = useCallback((slot: GarmentSlot) => {
+    setLockedTokens((prev) => {
       const next = { ...prev };
-      if (next[slot] === tokenId) {
-        delete next[slot];
-      } else {
-        next[slot] = tokenId;
-      }
+      delete next[slot];
       return next;
     });
+    setActiveSlot(slot);
+    setRemixSeed(0);
   }, []);
+
+  const resetAllLocks = useCallback(() => {
+    setLockedTokens({});
+    setCustomMatch(null);
+    setActiveSlot('top');
+    setAnchorSlot('top');
+    setRemixSeed(0);
+  }, []);
+
+  const toggleLockSlot = useCallback(
+    (slot: GarmentSlot, tokenId: string) => {
+      const currentLocked = lockedTokens[slot];
+      if (currentLocked?.id === tokenId) {
+        unlockSlot(slot);
+        return;
+      }
+      const token = palette.find((c) => c.id === tokenId);
+      if (!token) return;
+      assignTokenToSlot(slot, token);
+    },
+    [assignTokenToSlot, lockedTokens, palette, unlockSlot],
+  );
 
   const remixComputed = useCallback(() => {
     setRemixSeed((s) => s + 1);
@@ -222,8 +326,16 @@ export function useStylingStudio() {
 
   const regenerateAI = useCallback(() => {
     if (!selectedToken) return;
-    void fetchAIRecs(selectedToken, baseSlot, occasion);
-  }, [selectedToken, baseSlot, occasion, fetchAIRecs]);
+    void fetchAIRecs(selectedToken, baseSlot, occasion, lockedSlots);
+  }, [selectedToken, baseSlot, occasion, lockedSlots, fetchAIRecs]);
+
+  const visibleRecommendations = useMemo(() => {
+    if (sourceFilter === 'math_engine') return computedRecs;
+    if (sourceFilter === 'ollama_ai') return aiRecs;
+    return preferredSourceRef.current === 'ollama_ai'
+      ? [...aiRecs, ...computedRecs]
+      : [...computedRecs, ...aiRecs];
+  }, [sourceFilter, computedRecs, aiRecs]);
 
   const allRecommendations = useMemo(
     () => [...computedRecs, ...aiRecs],
@@ -231,17 +343,24 @@ export function useStylingStudio() {
   );
 
   useEffect(() => {
-    if (allRecommendations.length === 0) {
-      setActiveRecommendationId(null);
+    if (visibleRecommendations.length === 0) {
+      if (allRecommendations.length === 0) {
+        setActiveRecommendationId(null);
+      }
       return;
     }
     if (
       !activeRecommendationId ||
-      !allRecommendations.some((rec) => rec.id === activeRecommendationId)
+      !visibleRecommendations.some((rec) => rec.id === activeRecommendationId)
     ) {
-      setActiveRecommendationId(allRecommendations[0].id);
+      setActiveRecommendationId(visibleRecommendations[0].id);
     }
-  }, [allRecommendations, activeRecommendationId]);
+  }, [visibleRecommendations, allRecommendations.length, activeRecommendationId]);
+
+  const selectRecommendation = useCallback((rec: OutfitRecommendation) => {
+    preferredSourceRef.current = rec.source;
+    setActiveRecommendationId(rec.id);
+  }, []);
 
   const activeRecommendation = useMemo(
     () =>
@@ -286,10 +405,13 @@ export function useStylingStudio() {
 
   return {
     palette,
+    activeSlot,
+    setActiveSlot,
+    lockedTokens,
+    lockedCount,
     selectedToken,
     customMatch,
     baseSlot,
-    setBaseSlot,
     occasion,
     setOccasion,
     lockedSlots,
@@ -304,6 +426,7 @@ export function useStylingStudio() {
     setSourceFilter,
     activeRecommendationId,
     setActiveRecommendationId,
+    selectRecommendation,
     activeRecommendation,
     selectedSkinTone,
     setSelectedSkinTone,
@@ -317,6 +440,8 @@ export function useStylingStudio() {
     setIsOllamaModalOpen,
     selectToken,
     matchCustomHex,
+    unlockSlot,
+    resetAllLocks,
     toggleLockSlot,
     remixComputed,
     regenerateAI,

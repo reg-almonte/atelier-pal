@@ -31,6 +31,7 @@ class _OfflineAIStub(AIStylistPort):
         *,
         base_slot: GarmentSlot,
         occasion: Occasion,
+        locked_slots: dict[GarmentSlot, ColorToken] | None = None,
     ) -> list[OutfitRecommendation]:
         raise AIStylistUnavailableError("Offline", setup_hint="ollama pull llama3.2")
 

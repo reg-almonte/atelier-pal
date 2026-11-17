@@ -130,6 +130,7 @@ class OllamaStylistAdapter(AIStylistPort):
         *,
         base_slot: GarmentSlot,
         occasion: Occasion,
+        locked_slots: dict[GarmentSlot, ColorToken] | None = None,
     ) -> list[OutfitRecommendation]:
         status = await self.check_health()
         if not status.available or not status.active_model:
@@ -138,17 +139,30 @@ class OllamaStylistAdapter(AIStylistPort):
                 setup_hint=status.setup_instructions,
             )
 
+        locked_map = locked_slots or {}
+        locked_constraints = ", ".join(
+            f"{slot.value}: {tok.name} ({tok.hex})"
+            for slot, tok in locked_map.items()
+            if slot != base_slot
+        )
+        locked_line = (
+            f"Locked garments (keep these exact slots and colors): {locked_constraints}.\n"
+            if locked_constraints
+            else ""
+        )
+
         active_model = status.active_model
         system_prompt = (
             "You are an editorial personal stylist specializing in wearable color harmony "
             "and tactile fabric pairings. Propose 2 to 3 distinct, stylish outfit color "
-            "combinations tailored to the user's anchor piece and occasion. "
+            "combinations tailored to the user's anchor piece, any locked garments, and occasion. "
             "Each outfit must contain 3 to 4 garment slots with valid hex codes (#RRGGBB) "
             "and proportions summing near 100."
         )
         user_prompt = (
             f"Anchor garment: {base_slot.value} in {base_token.name} ({base_token.hex}, "
             f"undertone: {base_token.undertone.value}, value: {base_token.value.value}).\n"
+            f"{locked_line}"
             f"Occasion: {occasion.value}.\n"
             "Return 2 to 3 complete outfit combinations as JSON matching the schema."
         )
@@ -198,7 +212,22 @@ class OllamaStylistAdapter(AIStylistPort):
         recommendations: list[OutfitRecommendation] = []
         for outfit in parsed.outfits:
             mapped_items: list[OutfitItem] = []
+            seen_slots: set[GarmentSlot] = set()
             for item in outfit.items:
+                seen_slots.add(item.slot)
+                locked_token = locked_map.get(item.slot)
+                if locked_token is not None:
+                    mapped_items.append(
+                        OutfitItem(
+                            slot=item.slot,
+                            hex=locked_token.hex,
+                            color_name=locked_token.name,
+                            matched_token_id=locked_token.id,
+                            proportion_percentage=item.proportion_percentage,
+                        )
+                    )
+                    continue
+
                 try:
                     normalized_hex = normalize_hex(item.hex)
                     match = find_nearest_color_token(normalized_hex, palette)
@@ -216,6 +245,18 @@ class OllamaStylistAdapter(AIStylistPort):
                         proportion_percentage=item.proportion_percentage,
                     )
                 )
+
+            for slot, locked_token in locked_map.items():
+                if slot not in seen_slots:
+                    mapped_items.append(
+                        OutfitItem(
+                            slot=slot,
+                            hex=locked_token.hex,
+                            color_name=locked_token.name,
+                            matched_token_id=locked_token.id,
+                            proportion_percentage=15,
+                        )
+                    )
 
             recommendations.append(
                 OutfitRecommendation(
