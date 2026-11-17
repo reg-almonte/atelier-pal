@@ -1,0 +1,17 @@
+{
+  "name": "atelier-pal",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c cyan,magenta \"uv run --directory backend uvicorn app.main:app --reload --port 8000\" \"npm --prefix frontend run dev\"",
+    "dev:backend": "uv run --directory backend uvicorn app.main:app --reload --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "uv run --directory backend pytest -v && npm --prefix frontend test",
+    "lint": "uv run --directory backend ruff check app tests && npm --prefix frontend run build",
+    "setup:backend": "uv sync --directory backend",
+    "setup:frontend": "npm --prefix frontend install",
+    "setup": "npm install && npm run setup:backend && npm run setup:frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
