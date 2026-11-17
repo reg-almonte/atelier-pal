@@ -1,5 +1,7 @@
 import { AlertTriangle, Calculator, RefreshCw, Shuffle, Sparkles } from 'lucide-react';
 import { ColorSelectorPanel } from './presentation/components/ColorSelectorPanel';
+import { FloatingPreviewLink } from './presentation/components/FloatingPreviewLink';
+import { HumanModelStage } from './presentation/components/HumanModelStage';
 import { OllamaSetupModal } from './presentation/components/OllamaSetupModal';
 import { OutfitCard } from './presentation/components/OutfitCard';
 import { SavedLooksDrawer } from './presentation/components/SavedLooksDrawer';
@@ -21,7 +23,7 @@ export function App() {
     studio.sourceFilter === 'all' || studio.sourceFilter === 'ollama_ai';
 
   return (
-    <div className="flex min-h-screen flex-col bg-stone-50 text-stone-900">
+    <div className="flex min-h-screen flex-col bg-[#F6F4EF] text-[#1C1B18]">
       <TopNav
         aiStatus={studio.aiStatus}
         savedCount={studio.savedLooks.length}
@@ -29,9 +31,9 @@ export function App() {
         onOpenOllamaModal={() => studio.setIsOllamaModalOpen(true)}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-4 xl:col-span-3">
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-5 sm:px-5">
+        <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-[260px_1fr] min-[1141px]:grid-cols-[270px_minmax(340px,400px)_1fr]">
+          <div>
             <ColorSelectorPanel
               palette={studio.palette}
               selectedToken={studio.selectedToken}
@@ -45,7 +47,21 @@ export function App() {
             />
           </div>
 
-          <section className="space-y-6 lg:col-span-8 xl:col-span-9">
+          <HumanModelStage
+            recommendation={studio.activeRecommendation}
+            selectedSkinTone={studio.selectedSkinTone}
+            selectedBelt={studio.selectedBelt}
+            isSaved={
+              studio.activeRecommendation
+                ? studio.savedLookIds.has(studio.activeRecommendation.id)
+                : false
+            }
+            onSelectSkinTone={studio.setSelectedSkinTone}
+            onSelectBelt={studio.setSelectedBelt}
+            onSave={studio.saveLook}
+          />
+
+          <section className="min-w-0 space-y-6 md:col-span-2 min-[1141px]:col-span-1">
             {/* Source Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -129,7 +145,9 @@ export function App() {
                         key={rec.id}
                         recommendation={rec}
                         isSaved={studio.savedLookIds.has(rec.id)}
+                        isActive={studio.activeRecommendationId === rec.id}
                         lockedSlots={studio.lockedSlots}
+                        onSelect={(r) => studio.setActiveRecommendationId(r.id)}
                         onToggleLock={studio.toggleLockSlot}
                         onSave={studio.saveLook}
                       />
@@ -208,7 +226,9 @@ export function App() {
                         key={rec.id}
                         recommendation={rec}
                         isSaved={studio.savedLookIds.has(rec.id)}
+                        isActive={studio.activeRecommendationId === rec.id}
                         lockedSlots={studio.lockedSlots}
+                        onSelect={(r) => studio.setActiveRecommendationId(r.id)}
                         onSave={studio.saveLook}
                       />
                     ))}
@@ -238,6 +258,8 @@ export function App() {
         onClose={() => studio.setIsOllamaModalOpen(false)}
         onRefresh={() => void studio.refreshAIStatus()}
       />
+
+      <FloatingPreviewLink />
     </div>
   );
 }

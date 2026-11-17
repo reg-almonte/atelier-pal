@@ -1,0 +1,446 @@
+import { Bookmark, BookmarkCheck, Calculator, Sparkles } from 'lucide-react';
+import {
+  BELT_PALETTE,
+  isComputedSource,
+  isLightSkinTone,
+  SKIN_TONES,
+  STRATEGY_LABELS,
+  type BeltOption,
+  type OutfitRecommendation,
+  type SkinTone,
+} from '../../domain/models';
+
+interface HumanModelStageProps {
+  recommendation: OutfitRecommendation | null;
+  selectedSkinTone: SkinTone;
+  selectedBelt: BeltOption;
+  isSaved: boolean;
+  onSelectSkinTone: (tone: SkinTone) => void;
+  onSelectBelt: (belt: BeltOption) => void;
+  onSave: (rec: OutfitRecommendation) => void;
+}
+
+const GARMENT_TRANSITION = { transition: 'fill 220ms ease' } as const;
+
+export function HumanModelStage({
+  recommendation,
+  selectedSkinTone,
+  selectedBelt,
+  isSaved,
+  onSelectSkinTone,
+  onSelectBelt,
+  onSave,
+}: HumanModelStageProps) {
+  const bySlot = Object.fromEntries(
+    (recommendation?.items ?? []).map((item) => [item.slot, item]),
+  );
+
+  const topItem = bySlot.top;
+  const outerwearItem = bySlot.outerwear;
+  const bottomItem = bySlot.bottom;
+  const footwearItem = bySlot.footwear;
+
+  const hasOuterwear = Boolean(outerwearItem);
+  const hasBelt = selectedBelt.hex !== null;
+  const lightSkin = isLightSkinTone(selectedSkinTone.hex);
+  const computed = recommendation ? isComputedSource(recommendation.source) : true;
+
+  return (
+    <section
+      id="hero-stage"
+      aria-label="Live Human Model Preview"
+      className="flex flex-col overflow-hidden rounded-[18px] border border-[#E2DDD2] bg-white shadow-[0_6px_24px_rgba(28,27,24,0.04)] min-[1141px]:sticky min-[1141px]:top-[72px]"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2.5 border-b border-[#E2DDD2] px-[18px] py-3.5">
+        <div className="flex min-w-0 flex-col gap-1">
+          {recommendation ? (
+            <span
+              className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                computed ? 'bg-[#E0F2FE] text-[#0C4A6E]' : 'bg-[#EDE9FE] text-[#4C1D95]'
+              }`}
+            >
+              {computed ? <Calculator className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+              {computed ? 'Computed · Color Math' : recommendation.source_label}
+            </span>
+          ) : (
+            <span className="inline-flex w-fit items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-bold text-stone-600">
+              Studio Preview
+            </span>
+          )}
+          <h2 className="truncate font-serif text-base font-bold text-[#1C1B18]">
+            {recommendation ? STRATEGY_LABELS[recommendation.strategy] : 'Select a Look'}
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          disabled={!recommendation}
+          onClick={() => recommendation && onSave(recommendation)}
+          aria-label={isSaved ? 'Saved look' : 'Save look'}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-40 ${
+            isSaved
+              ? 'border-[#1C1B18] bg-[#1C1B18] text-white'
+              : 'border-[#1C1B18] bg-[#1C1B18] text-white hover:bg-[#33312B]'
+          }`}
+        >
+          {isSaved ? (
+            <>
+              <BookmarkCheck className="h-3.5 w-3.5" />
+              Saved
+            </>
+          ) : (
+            <>
+              <Bookmark className="h-3.5 w-3.5" />
+              Save Look
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Warm Radial Preview Pane */}
+      <div
+        className="flex flex-col items-center gap-3 px-[18px] pb-4 pt-3.5"
+        style={{
+          background: 'radial-gradient(circle at 50% 42%, #ECE8DF 0%, #DED8CB 100%)',
+        }}
+      >
+        {/* Model Tone Toolbar */}
+        <div className="flex w-full items-center justify-between gap-2.5 rounded-full border border-[#E2DDD2] bg-white/80 px-3 py-1.5 backdrop-blur-sm">
+          <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#6E6A61]">
+            Model Tone
+          </span>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Model skin tone">
+            {SKIN_TONES.map((tone) => {
+              const pressed = selectedSkinTone.name === tone.name;
+              return (
+                <button
+                  key={tone.name}
+                  type="button"
+                  title={tone.name}
+                  aria-label={`Model skin tone ${tone.name}`}
+                  aria-pressed={pressed}
+                  onClick={() => onSelectSkinTone(tone)}
+                  style={{ backgroundColor: tone.hex }}
+                  className={`h-[18px] w-[18px] rounded-full border border-[#1C1B18]/25 transition ${
+                    pressed ? 'scale-110 ring-2 ring-[#1C1B18] ring-offset-2' : 'hover:scale-105'
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 5-Layer Human Model SVG */}
+        <div className="flex w-full max-w-[245px] items-center justify-center">
+          <svg
+            className="h-auto max-h-[390px] w-full drop-shadow-[0_10px_18px_rgba(28,27,24,0.09)]"
+            viewBox="168 12 176 490"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            role="img"
+            aria-label="Human model wearing selected outfit"
+          >
+            {/* Body Silhouette: Head, Neck & Arms */}
+            <g
+              id="figure-body"
+              fill={selectedSkinTone.hex}
+              stroke={lightSkin ? '#1C1B18' : '#FFFFFF'}
+              strokeOpacity={lightSkin ? 0.28 : 0.32}
+              strokeWidth="0.9"
+              strokeLinejoin="round"
+              style={{ transition: 'fill 220ms ease, stroke 220ms ease, stroke-opacity 220ms ease' }}
+            >
+              <path d="M 250.50 70.69 C 248.57 78.26, 263.13 85.17, 269.50 84.82 C 271.92 84.68, 274.16 83.60, 276.50 83.18 C 277.46 84.72, 278.74 86.60, 278.86 88.47 C 279.13 92.72, 274.61 98.57, 271.39 100.94 C 268.43 103.12, 264.93 104.34, 261.93 106.43 C 259.39 108.19, 257.92 110.99, 255.50 112.88 C 254.03 110.66, 253.81 107.92, 252.61 105.50 C 250.86 101.99, 247.92 99.38, 247.01 95.50 C 247.24 93.05, 248.31 90.92, 248.67 88.50 C 249.09 85.72, 248.73 71.79, 248.00 69.48 C 246.46 64.62, 241.24 63.93, 240.88 57.50 C 240.42 49.12, 239.29 40.00, 244.02 32.59 C 250.72 22.08, 264.56 18.59, 275.63 23.84 C 278.06 25.00, 280.82 26.05, 282.33 28.42 C 284.52 31.85, 284.82 40.48, 284.37 44.47 C 283.92 48.55, 285.14 52.50, 284.69 56.50 C 284.16 61.18, 282.24 64.99, 281.19 69.46 C 279.86 75.15, 277.08 81.48, 270.53 82.52 C 265.17 83.37, 257.39 79.72, 253.94 75.66 C 252.36 73.80, 252.77 71.91, 250.50 70.69 Z" />
+              <path d="M 204.50 159.01 C 207.56 158.96, 218.91 160.80, 221.50 162.16 C 223.17 165.97, 221.91 175.55, 220.52 179.53 C 219.56 182.27, 217.88 184.63, 217.19 187.48 C 216.32 191.10, 216.36 194.87, 215.82 198.54 C 214.98 204.19, 213.37 209.93, 211.74 215.41 C 208.64 225.79, 202.68 237.41, 200.53 247.50 C 199.67 251.52, 201.50 255.52, 201.86 259.50 C 202.19 263.23, 201.74 273.15, 199.50 275.86 C 196.48 273.96, 198.70 270.38, 195.94 268.50 C 187.79 275.88, 201.35 280.00, 203.93 283.50 C 201.74 285.16, 200.05 284.75, 197.53 284.14 C 190.31 282.42, 184.37 275.24, 184.88 267.50 C 185.27 261.60, 189.43 256.51, 190.00 250.50 C 190.90 240.92, 191.57 231.11, 191.94 221.50 C 192.28 212.53, 192.27 203.30, 194.20 194.50 C 195.34 189.27, 197.77 184.56, 199.48 179.52 C 201.63 173.14, 200.71 164.62, 204.50 159.01 Z" />
+              <path d="M 324.45 159.50 C 325.46 163.33, 325.07 167.53, 325.23 171.50 C 325.53 179.16, 325.92 186.83, 326.25 194.50 C 326.94 210.50, 327.38 226.47, 326.97 242.50 C 326.79 249.18, 325.83 255.81, 325.74 262.50 C 325.66 268.20, 326.69 273.86, 326.68 279.53 C 326.65 288.81, 322.09 297.49, 313.49 301.46 C 310.43 302.88, 306.58 304.66, 303.89 302.50 C 305.04 299.47, 307.88 298.63, 309.49 295.99 C 310.42 294.46, 310.17 292.22, 310.47 290.50 C 310.93 287.90, 311.15 286.82, 309.50 284.80 C 306.51 288.07, 307.91 296.02, 302.50 295.90 C 301.70 293.38, 302.78 291.08, 303.03 288.49 C 303.44 284.22, 303.78 279.59, 305.54 275.63 C 308.54 268.90, 312.83 264.27, 312.97 256.50 C 313.19 244.91, 311.05 232.97, 309.31 221.55 C 307.74 211.25, 307.56 200.79, 305.78 190.50 C 304.56 183.43, 303.66 176.65, 303.07 169.50 C 302.86 167.02, 302.05 164.99, 302.36 162.50 C 306.50 159.89, 311.72 161.55, 316.50 160.89 C 319.26 160.50, 321.72 159.13, 324.45 159.50 Z" />
+            </g>
+
+            {/* Shirt */}
+            <g id="garment-shirt">
+              <path
+                id="shirt-fill"
+                style={GARMENT_TRANSITION}
+                d="M 282.50 88.63 C 286.80 91.05, 290.39 95.19, 294.60 97.98 C 303.30 103.75, 315.36 109.48, 320.49 119.05 C 323.28 124.24, 323.50 131.71, 324.16 137.50 C 324.81 143.32, 325.99 151.36, 322.76 156.50 C 318.34 159.19, 312.61 159.63, 307.50 159.30 C 304.76 159.13, 302.38 158.46, 299.81 159.50 C 299.29 164.54, 301.78 169.39, 301.02 174.50 C 300.64 177.01, 299.17 179.31, 298.25 181.64 C 296.38 186.35, 296.05 191.56, 297.16 196.50 C 298.23 201.30, 300.54 205.73, 301.73 210.50 C 302.53 213.70, 302.22 217.15, 302.66 220.42 C 303.13 223.97, 304.38 227.20, 302.50 230.36 C 298.03 231.67, 291.93 229.29, 286.50 230.28 C 281.15 231.25, 275.92 233.04, 270.54 233.83 C 266.54 234.41, 262.52 234.14, 258.50 234.33 C 252.13 234.64, 245.92 235.22, 239.50 235.16 C 235.06 235.12, 229.87 236.58, 225.66 235.50 C 223.48 232.61, 224.12 230.01, 223.88 226.50 C 223.44 219.97, 223.87 213.99, 224.64 207.50 C 225.44 200.68, 223.76 193.40, 223.72 186.50 C 223.67 177.98, 225.23 168.92, 224.26 160.50 C 219.07 156.79, 210.56 160.32, 205.50 155.79 C 205.35 152.09, 206.17 148.30, 206.13 144.50 C 206.05 134.98, 204.84 123.17, 209.48 114.46 C 213.51 106.88, 227.18 102.92, 234.47 98.68 C 237.79 96.73, 240.94 93.26, 244.50 92.07 C 245.14 94.01, 244.58 96.12, 245.46 98.08 C 247.28 102.12, 250.57 105.15, 251.84 109.51 C 252.74 112.63, 252.23 115.97, 253.50 118.94 C 257.63 118.37, 257.73 113.35, 260.43 110.50 C 264.56 106.12, 270.87 105.08, 275.00 100.51 C 277.52 97.72, 280.53 89.85, 282.50 88.63 Z"
+                fill={topItem?.hex ?? '#F9F9F7'}
+                stroke="#1C1B18"
+                strokeOpacity="0.08"
+                strokeWidth="0.65"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            {/* Pants */}
+            <g id="garment-pants">
+              <path
+                id="pants-fill"
+                style={GARMENT_TRANSITION}
+                d="M 302.46 234.50 C 305.02 239.82, 304.10 246.72, 303.33 252.44 C 302.05 262.03, 301.08 271.33, 298.31 280.65 C 290.37 307.28, 282.56 335.55, 281.91 363.50 C 281.73 371.09, 286.03 377.43, 288.54 384.38 C 291.27 391.94, 292.89 399.82, 295.54 407.38 C 296.64 410.51, 298.32 413.33, 299.53 416.39 C 301.81 422.18, 303.78 429.33, 304.67 435.50 C 305.11 438.60, 303.05 440.94, 300.68 442.56 C 296.28 445.56, 285.86 450.37, 280.50 449.21 C 276.24 444.44, 278.84 437.42, 272.50 432.20 C 270.17 433.74, 270.19 436.92, 269.81 439.49 C 268.87 445.78, 270.69 455.24, 266.50 460.25 C 264.65 461.29, 262.60 461.18, 260.51 461.39 C 255.51 461.90, 243.59 462.59, 240.21 458.50 C 238.18 448.75, 242.27 438.08, 243.84 428.50 C 245.76 416.84, 247.13 405.27, 248.27 393.50 C 248.99 386.02, 250.61 378.01, 250.03 370.50 C 249.62 365.03, 246.72 359.60, 244.86 354.50 C 243.16 349.84, 241.76 345.08, 240.30 340.35 C 233.48 318.22, 227.33 296.51, 224.71 273.46 C 223.81 265.52, 223.64 257.50, 223.68 249.50 C 223.70 245.95, 223.02 241.89, 224.50 238.68 C 230.37 236.78, 237.37 237.43, 243.50 237.41 C 253.37 237.36, 268.06 236.99, 277.48 234.76 C 285.26 232.91, 295.26 229.37, 302.46 234.50 Z"
+                fill={bottomItem?.hex ?? '#263850'}
+                stroke="#1C1B18"
+                strokeOpacity="0.08"
+                strokeWidth="0.65"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            {/* Optional Belt Layer */}
+            <g
+              id="garment-belt"
+              data-visible={hasBelt ? 'true' : 'false'}
+              style={{
+                opacity: hasBelt ? 1 : 0,
+                transform: hasBelt ? 'scale(1)' : 'scale(0.985)',
+                transformOrigin: '263px 236px',
+                transition: 'opacity 200ms ease, transform 200ms ease',
+                pointerEvents: hasBelt ? 'auto' : 'none',
+              }}
+            >
+              <path
+                id="belt-fill"
+                style={GARMENT_TRANSITION}
+                d="M 223.80 233.40 C 238.00 234.60, 253.50 234.20, 268.50 233.00 C 282.50 231.90, 294.50 229.80, 303.10 230.40 L 303.60 237.60 C 294.50 237.20, 282.50 239.20, 268.50 240.30 C 253.50 241.50, 238.00 241.80, 223.40 240.50 Z"
+                fill={selectedBelt.hex ?? '#7D4E2D'}
+                stroke="#1C1B18"
+                strokeOpacity="0.16"
+                strokeWidth="0.65"
+                strokeLinejoin="round"
+              />
+              <rect
+                x="253.6"
+                y="232.3"
+                width="10.4"
+                height="9.2"
+                rx="1.8"
+                fill="#D6CFC2"
+                stroke="#1C1B18"
+                strokeOpacity="0.35"
+                strokeWidth="0.9"
+              />
+              <rect x="255.8" y="234.2" width="6.0" height="5.4" rx="0.9" fill="#263850" fillOpacity="0.25" />
+              <line
+                x1="254.0"
+                y1="236.9"
+                x2="258.6"
+                y2="236.9"
+                stroke="#1C1B18"
+                strokeOpacity="0.45"
+                strokeWidth="0.9"
+                strokeLinecap="round"
+              />
+            </g>
+
+            {/* Optional Outerwear Layer (Open-Front Jacket) */}
+            <g
+              id="garment-outerwear"
+              data-visible={hasOuterwear ? 'true' : 'false'}
+              style={{
+                opacity: hasOuterwear ? 1 : 0,
+                transform: hasOuterwear ? 'scale(1)' : 'scale(0.985)',
+                transformOrigin: '264px 160px',
+                transition: 'opacity 200ms ease, transform 200ms ease',
+                pointerEvents: hasOuterwear ? 'auto' : 'none',
+              }}
+            >
+              <path
+                d="M 244.8 91.5 L 250.2 124.0 L 247.6 254.0"
+                stroke="#1C1B18"
+                strokeOpacity="0.12"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 283.2 89.5 L 267.5 123.0 L 269.6 252.5"
+                stroke="#1C1B18"
+                strokeOpacity="0.12"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+              />
+              <path
+                id="outerwear-left-fill"
+                style={GARMENT_TRANSITION}
+                d="M 244.50 89.40 C 246.20 96.20, 249.20 107.80, 249.80 121.00 C 250.30 138.00, 248.20 176.00, 247.40 210.00 C 246.90 231.00, 246.60 245.50, 246.20 254.50 C 238.50 255.60, 228.50 255.20, 221.20 253.60 C 219.80 244.00, 220.60 227.00, 221.40 207.50 C 222.00 192.00, 222.20 176.50, 221.50 165.50 C 218.20 179.00, 214.20 198.00, 209.60 216.00 C 206.40 228.50, 202.80 246.00, 202.80 262.80 C 197.40 262.60, 191.20 261.20, 186.60 259.20 C 188.00 245.50, 189.20 228.00, 189.80 212.00 C 190.40 196.00, 192.60 183.50, 196.60 171.50 C 200.20 160.50, 201.40 144.00, 203.20 128.00 C 204.60 115.50, 208.50 109.20, 218.50 103.50 C 228.20 98.00, 237.80 92.80, 244.50 89.40 Z"
+                fill={outerwearItem?.hex ?? '#5B4636'}
+                stroke="#1C1B18"
+                strokeOpacity="0.14"
+                strokeWidth="0.75"
+                strokeLinejoin="round"
+              />
+              <path
+                id="outerwear-right-fill"
+                style={GARMENT_TRANSITION}
+                d="M 283.40 87.60 C 291.50 92.20, 302.50 99.40, 311.80 106.20 C 319.80 112.00, 323.80 120.50, 325.40 135.00 C 327.00 151.00, 327.40 175.00, 327.80 202.00 C 328.20 229.00, 328.00 252.50, 327.30 268.20 C 321.50 269.40, 315.20 269.50, 309.80 268.40 C 310.80 255.00, 310.50 238.00, 308.40 220.00 C 306.50 203.00, 304.20 182.00, 302.30 165.00 C 302.50 179.00, 303.60 198.00, 304.80 218.00 C 305.80 234.00, 306.80 245.00, 306.20 251.20 C 296.50 253.80, 282.00 254.00, 269.80 252.60 C 269.20 240.00, 268.80 218.00, 268.20 192.00 C 267.60 164.00, 266.20 136.00, 266.80 120.50 C 267.60 107.00, 276.80 93.40, 283.40 87.60 Z"
+                fill={outerwearItem?.hex ?? '#5B4636'}
+                stroke="#1C1B18"
+                strokeOpacity="0.14"
+                strokeWidth="0.75"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 243.5 92.0 L 236.5 117.5 L 243.5 123.5 L 238.5 144.0 L 247.5 162.0"
+                stroke="#1C1B18"
+                strokeOpacity="0.18"
+                strokeWidth="0.85"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 282.8 90.0 L 284.5 117.0 L 277.5 123.5 L 281.5 142.5 L 267.5 161.0"
+                stroke="#1C1B18"
+                strokeOpacity="0.18"
+                strokeWidth="0.85"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 225.5 214.0 L 240.0 215.5 M 277.0 215.0 L 296.5 213.0"
+                stroke="#1C1B18"
+                strokeOpacity="0.16"
+                strokeWidth="0.85"
+                strokeLinecap="round"
+              />
+            </g>
+
+            {/* Shoes */}
+            <defs>
+              <mask id="back-shoe-mask">
+                <rect x="168" y="12" width="176" height="490" fill="#FFFFFF" />
+                <path
+                  d="M 239.50 462.01 C 243.23 462.20, 246.69 463.16, 250.50 463.17 C 253.70 463.17, 257.53 462.36, 260.50 463.71 C 262.40 465.48, 262.57 467.30, 264.04 469.26 C 265.83 471.67, 267.31 473.24, 266.89 476.54 C 266.50 479.62, 264.48 482.43, 263.50 485.35 C 261.18 486.41, 258.87 486.70, 256.48 487.47 C 246.06 490.86, 241.49 491.63, 230.36 489.37 C 227.07 488.69, 223.35 489.04, 220.85 486.50 C 220.44 480.22, 230.78 472.97, 234.48 468.60 C 236.45 466.28, 237.05 463.82, 239.50 462.01 Z"
+                  fill="#000000"
+                  stroke="#000000"
+                  strokeWidth="2.4"
+                  strokeLinejoin="round"
+                />
+              </mask>
+            </defs>
+            <g id="garment-shoes">
+              <g mask="url(#back-shoe-mask)">
+                <path
+                  id="shoe-back-fill"
+                  style={GARMENT_TRANSITION}
+                  d="M 306.50 441.83 C 309.08 444.60, 312.61 450.77, 313.62 454.50 C 312.75 458.21, 308.47 463.26, 304.53 464.06 C 302.91 464.38, 301.14 464.02, 299.50 463.95 C 295.34 467.11, 295.91 472.17, 292.44 475.00 C 286.71 479.66, 277.18 477.77, 270.46 477.87 C 269.43 477.88, 269.22 478.52, 268.36 478.86 C 265.92 479.83, 263.50 480.42, 261.00 479.50 C 259.07 477.17, 259.25 471.10, 261.50 469.00 C 263.33 469.11, 264.69 469.81, 266.50 469.99 C 270.19 467.02, 274.43 463.59, 276.99 459.54 C 278.41 457.29, 278.95 454.72, 280.50 452.53 C 285.82 449.99, 291.95 449.47, 297.38 446.87 C 300.58 445.35, 303.01 441.97, 306.50 441.83 Z"
+                  fill={footwearItem?.hex ?? '#F4F3EF'}
+                  stroke="#1C1B18"
+                  strokeOpacity="0.08"
+                  strokeWidth="0.65"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M 306.50 441.83 C 309.08 444.60, 312.61 450.77, 313.62 454.50 C 312.75 458.21, 308.47 463.26, 304.53 464.06 C 302.91 464.38, 301.14 464.02, 299.50 463.95 C 295.34 467.11, 295.91 472.17, 292.44 475.00 C 286.71 479.66, 277.18 477.77, 270.46 477.87 C 269.43 477.88, 269.22 478.52, 268.36 478.86 C 265.92 479.83, 263.50 480.42, 261.00 479.50 C 259.07 477.17, 259.25 471.10, 261.50 469.00 C 263.33 469.11, 264.69 469.81, 266.50 469.99 C 270.19 467.02, 274.43 463.59, 276.99 459.54 C 278.41 457.29, 278.95 454.72, 280.50 452.53 C 285.82 449.99, 291.95 449.47, 297.38 446.87 C 300.58 445.35, 303.01 441.97, 306.50 441.83 Z"
+                  fill="#1C1B18"
+                  fillOpacity="0.06"
+                />
+              </g>
+              <path
+                id="shoe-front-fill"
+                style={GARMENT_TRANSITION}
+                d="M 239.50 462.01 C 243.23 462.20, 246.69 463.16, 250.50 463.17 C 253.70 463.17, 257.53 462.36, 260.50 463.71 C 262.40 465.48, 262.57 467.30, 264.04 469.26 C 265.83 471.67, 267.31 473.24, 266.89 476.54 C 266.50 479.62, 264.48 482.43, 263.50 485.35 C 261.18 486.41, 258.87 486.70, 256.48 487.47 C 246.06 490.86, 241.49 491.63, 230.36 489.37 C 227.07 488.69, 223.35 489.04, 220.85 486.50 C 220.44 480.22, 230.78 472.97, 234.48 468.60 C 236.45 466.28, 237.05 463.82, 239.50 462.01 Z"
+                fill={footwearItem?.hex ?? '#F4F3EF'}
+                stroke="#1C1B18"
+                strokeOpacity="0.08"
+                strokeWidth="0.65"
+                strokeLinejoin="round"
+              />
+            </g>
+          </svg>
+        </div>
+
+        {/* 5-Slot Summary Strip */}
+        <div
+          className="grid w-full grid-cols-3 gap-1.5 rounded-xl border border-[#E2DDD2] bg-white/85 px-2.5 py-2 backdrop-blur-sm sm:grid-cols-5"
+          aria-label="Selected outfit summary"
+        >
+          <SummarySlot label="Top" value={topItem?.color_name ?? '—'} hex={topItem?.hex ?? null} />
+          <SummarySlot
+            label="Outerwear"
+            value={outerwearItem ? outerwearItem.color_name : 'None'}
+            hex={outerwearItem?.hex ?? null}
+            dimmed={!hasOuterwear}
+          />
+          <SummarySlot
+            label="Belt"
+            value={hasBelt ? selectedBelt.name : 'None'}
+            hex={selectedBelt.hex}
+            dimmed={!hasBelt}
+          />
+          <SummarySlot
+            label="Bottom"
+            value={bottomItem?.color_name ?? '—'}
+            hex={bottomItem?.hex ?? null}
+          />
+          <SummarySlot
+            label="Footwear"
+            value={footwearItem?.color_name ?? '—'}
+            hex={footwearItem?.hex ?? null}
+          />
+        </div>
+      </div>
+
+      {/* Belt Quick-Picker Strip */}
+      <div className="flex flex-col gap-2 border-t border-[#E2DDD2] bg-white px-4 py-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1.5 font-semibold text-[#1C1B18]">
+            Belt
+            <span className="rounded-full border border-[#E2DDD2] bg-[#F6F4EF] px-2 py-0.5 text-[10px] font-medium text-[#6E6A61]">
+              Optional
+            </span>
+          </span>
+          <span className="font-medium text-[#6E6A61]">{selectedBelt.name}</span>
+        </div>
+
+        <div className="flex flex-wrap gap-[7px]" role="group" aria-label="Belt colors">
+          {BELT_PALETTE.map((belt) => {
+            const pressed = selectedBelt.name === belt.name;
+            const isNone = belt.hex === null;
+            return (
+              <button
+                key={belt.name}
+                type="button"
+                title={belt.name}
+                aria-label={`Belt ${belt.name}`}
+                aria-pressed={pressed}
+                onClick={() => onSelectBelt(belt)}
+                style={
+                  isNone
+                    ? {
+                        background:
+                          'linear-gradient(to top right, transparent calc(50% - 1px), rgba(28, 27, 24, 0.45) calc(50% - 1px), rgba(28, 27, 24, 0.45) calc(50% + 1px), transparent calc(50% + 1px)), #FFFFFF',
+                      }
+                    : { backgroundColor: belt.hex ?? undefined }
+                }
+                className={`h-[26px] w-[26px] rounded-full border border-[#1C1B18]/20 transition ${
+                  pressed ? 'scale-105 ring-2 ring-[#1C1B18] ring-offset-2' : 'hover:scale-105'
+                }`}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+interface SummarySlotProps {
+  label: string;
+  value: string;
+  hex: string | null;
+  dimmed?: boolean;
+}
+
+function SummarySlot({ label, value, hex, dimmed = false }: SummarySlotProps) {
+  return (
+    <div className={`flex min-w-0 items-center gap-1.5 transition-opacity ${dimmed ? 'opacity-45' : ''}`}>
+      <span
+        className="h-[11px] w-[11px] shrink-0 rounded-full border border-[#1C1B18]/25"
+        style={{ backgroundColor: hex ?? 'transparent' }}
+      />
+      <div className="flex min-w-0 flex-col">
+        <span className="text-[10px] uppercase tracking-[0.05em] leading-[1.15] text-[#6E6A61]">
+          {label}
+        </span>
+        <span className="truncate text-[11px] font-semibold text-[#1C1B18]">{value}</span>
+      </div>
+    </div>
+  );
+}

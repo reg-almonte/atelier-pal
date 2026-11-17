@@ -10,7 +10,9 @@ import {
 interface OutfitCardProps {
   recommendation: OutfitRecommendation;
   isSaved: boolean;
+  isActive?: boolean;
   lockedSlots: Partial<Record<GarmentSlot, string>>;
+  onSelect?: (rec: OutfitRecommendation) => void;
   onToggleLock?: (slot: GarmentSlot, tokenId: string) => void;
   onSave: (rec: OutfitRecommendation) => void;
 }
@@ -18,16 +20,37 @@ interface OutfitCardProps {
 export function OutfitCard({
   recommendation,
   isSaved,
+  isActive = false,
   lockedSlots,
+  onSelect,
   onToggleLock,
   onSave,
 }: OutfitCardProps) {
   const computed = isComputedSource(recommendation.source);
 
+  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!onSelect || e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(recommendation);
+    }
+  };
+
   return (
     <article
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      aria-pressed={onSelect ? isActive : undefined}
+      onClick={() => onSelect?.(recommendation)}
+      onKeyDown={handleCardKeyDown}
       className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md ${
-        computed ? 'border-stone-200' : 'border-violet-200/80 bg-gradient-to-b from-violet-50/20 to-white'
+        onSelect ? 'cursor-pointer' : ''
+      } ${
+        isActive
+          ? 'border-stone-900 ring-2 ring-stone-900'
+          : computed
+            ? 'border-stone-200'
+            : 'border-violet-200/80 bg-gradient-to-b from-violet-50/20 to-white'
       }`}
     >
       <div>
@@ -47,28 +70,39 @@ export function OutfitCard({
             {computed ? 'Computed · Color Math' : recommendation.source_label}
           </span>
 
-          <button
-            type="button"
-            onClick={() => onSave(recommendation)}
-            aria-label={isSaved ? 'Saved look' : 'Save look'}
-            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition ${
-              isSaved
-                ? 'border-stone-900 bg-stone-900 text-white'
-                : 'border-stone-200 text-stone-600 hover:bg-stone-100'
-            }`}
-          >
-            {isSaved ? (
-              <>
-                <BookmarkCheck className="h-3.5 w-3.5" />
-                Saved
-              </>
-            ) : (
-              <>
-                <Bookmark className="h-3.5 w-3.5" />
-                Save
-              </>
+          <div className="flex items-center gap-1.5">
+            {isActive && (
+              <span className="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                On Model
+              </span>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave(recommendation);
+              }}
+              aria-label={isSaved ? 'Saved look' : 'Save look'}
+              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition ${
+                isSaved
+                  ? 'border-stone-900 bg-stone-900 text-white'
+                  : 'border-stone-200 text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              {isSaved ? (
+                <>
+                  <BookmarkCheck className="h-3.5 w-3.5" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Bookmark className="h-3.5 w-3.5" />
+                  Save
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <h3 className="mt-3 font-serif text-base font-semibold text-stone-900">
@@ -124,8 +158,13 @@ export function OutfitCard({
                 {computed && onToggleLock && (
                   <button
                     type="button"
-                    onClick={() => onToggleLock(item.slot, item.matched_token_id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleLock(item.slot, item.matched_token_id);
+                    }}
                     title={isLocked ? 'Unlock slot' : 'Lock slot for remix'}
+                    aria-label={isLocked ? `Unlock ${SLOT_LABELS[item.slot]} slot` : `Lock ${SLOT_LABELS[item.slot]} slot`}
+                    aria-pressed={isLocked}
                     className={`rounded-md p-1.5 transition ${
                       isLocked
                         ? 'bg-stone-900 text-white'

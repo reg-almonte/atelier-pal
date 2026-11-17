@@ -48,6 +48,7 @@ describe('IndexedDBLookRepository', () => {
       ...computedLook,
       id: 'look-ai-1',
       saved_at: '2026-11-15T11:00:00.000Z',
+      belt: { name: 'Tobacco', hex: '#7D4E2D' },
       recommendation: {
         ...computedLook.recommendation,
         id: 'look-ai-1',
@@ -64,7 +65,9 @@ describe('IndexedDBLookRepository', () => {
     expect(listed).toHaveLength(2);
     expect(listed[0].id).toBe('look-ai-1');
     expect(listed[0].recommendation.source).toBe('ollama_ai');
+    expect(listed[0].belt).toEqual({ name: 'Tobacco', hex: '#7D4E2D' });
     expect(listed[1].recommendation.source).toBe('math_engine');
+    expect(listed[1].belt).toBeUndefined();
 
     await useCases.removeLook('look-computed-1');
     const afterDelete = await useCases.listSavedLooks();

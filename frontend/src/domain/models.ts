@@ -78,6 +78,16 @@ export interface AIStatus {
   setup_instructions?: string | null;
 }
 
+export interface SkinTone {
+  name: string;
+  hex: string;
+}
+
+export interface BeltOption {
+  name: string;
+  hex: string | null;
+}
+
 export interface SavedLook {
   id: string;
   saved_at: string;
@@ -85,6 +95,7 @@ export interface SavedLook {
   base_slot: GarmentSlot;
   occasion: Occasion;
   recommendation: OutfitRecommendation;
+  belt?: BeltOption;
 }
 
 export interface WardrobeItem {
@@ -120,6 +131,39 @@ export const STRATEGY_LABELS: Record<RecommendationStrategy, string> = {
   editorial: 'Editorial / Seasonal',
   ai_curated: 'AI Stylist Curated',
 };
+
+export const SKIN_TONES: readonly SkinTone[] = [
+  { name: 'Fair', hex: '#F5D6C3' },
+  { name: 'Light Medium', hex: '#E0B495' },
+  { name: 'Medium', hex: '#C18C68' },
+  { name: 'Deep Brown', hex: '#835237' },
+  { name: 'Black', hex: '#2B2A27' },
+];
+
+export const BELT_PALETTE: readonly BeltOption[] = [
+  { name: 'None', hex: null },
+  { name: 'Tan', hex: '#C29563' },
+  { name: 'Cognac', hex: '#A46434' },
+  { name: 'Tobacco', hex: '#7D4E2D' },
+  { name: 'Dark Brown', hex: '#422B1D' },
+  { name: 'Oxblood', hex: '#592329' },
+  { name: 'Olive Web', hex: '#4E5440' },
+  { name: 'Navy Web', hex: '#202B3D' },
+  { name: 'Black', hex: '#1A1A1C' },
+];
+
+export function getRelativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '');
+  const channels = [0, 2, 4].map((i) => {
+    const c = parseInt(clean.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+export function isLightSkinTone(hex: string): boolean {
+  return getRelativeLuminance(hex) > 0.22;
+}
 
 export function isComputedSource(source: RecommendationSource): boolean {
   return source === 'math_engine';

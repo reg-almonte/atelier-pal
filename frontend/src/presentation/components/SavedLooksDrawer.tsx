@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Calculator, Sparkles, Trash2, X } from 'lucide-react';
 import {
   isComputedSource,
@@ -19,10 +20,24 @@ export function SavedLooksDrawer({
   onClose,
   onDeleteLook,
 }: SavedLooksDrawerProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-stone-950/40 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-stone-950/40 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Saved Looks"
+    >
       <div className="flex h-full w-full max-w-md flex-col border-l border-stone-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <div>
@@ -36,6 +51,7 @@ export function SavedLooksDrawer({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close Saved Looks"
             className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
           >
             <X className="h-4 w-4" />
@@ -112,6 +128,16 @@ export function SavedLooksDrawer({
                       />
                     ))}
                   </div>
+
+                  {look.belt?.hex && (
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-stone-600">
+                      <span
+                        className="h-3 w-3 rounded-full border border-stone-300"
+                        style={{ backgroundColor: look.belt.hex }}
+                      />
+                      <span>Belt: {look.belt.name}</span>
+                    </div>
+                  )}
 
                   <p className="mt-2 text-xs leading-relaxed text-stone-600">
                     {look.recommendation.styling_rationale}

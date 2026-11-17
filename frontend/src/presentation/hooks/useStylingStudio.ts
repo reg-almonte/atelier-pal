@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LookStorageUseCases } from '../../application/useCases';
-import type {
-  AIStatus,
-  ColorMatchResult,
-  ColorToken,
-  GarmentSlot,
-  Occasion,
-  OutfitRecommendation,
-  SavedLook,
+import {
+  BELT_PALETTE,
+  SKIN_TONES,
+  type AIStatus,
+  type BeltOption,
+  type ColorMatchResult,
+  type ColorToken,
+  type GarmentSlot,
+  type Occasion,
+  type OutfitRecommendation,
+  type SavedLook,
+  type SkinTone,
 } from '../../domain/models';
 import { ApiClientError, FastApiHttpClient } from '../../infrastructure/api/FastApiHttpClient';
 import { IndexedDBLookRepository } from '../../infrastructure/indexeddb/IndexedDBLookRepository';
@@ -39,6 +43,9 @@ export function useStylingStudio() {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
 
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [activeRecommendationId, setActiveRecommendationId] = useState<string | null>(null);
+  const [selectedSkinTone, setSelectedSkinTone] = useState<SkinTone>(SKIN_TONES[4]);
+  const [selectedBelt, setSelectedBelt] = useState<BeltOption>(BELT_PALETTE[0]);
   const [savedLooks, setSavedLooks] = useState<SavedLook[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isOllamaModalOpen, setIsOllamaModalOpen] = useState<boolean>(false);
@@ -218,6 +225,32 @@ export function useStylingStudio() {
     void fetchAIRecs(selectedToken, baseSlot, occasion);
   }, [selectedToken, baseSlot, occasion, fetchAIRecs]);
 
+  const allRecommendations = useMemo(
+    () => [...computedRecs, ...aiRecs],
+    [computedRecs, aiRecs],
+  );
+
+  useEffect(() => {
+    if (allRecommendations.length === 0) {
+      setActiveRecommendationId(null);
+      return;
+    }
+    if (
+      !activeRecommendationId ||
+      !allRecommendations.some((rec) => rec.id === activeRecommendationId)
+    ) {
+      setActiveRecommendationId(allRecommendations[0].id);
+    }
+  }, [allRecommendations, activeRecommendationId]);
+
+  const activeRecommendation = useMemo(
+    () =>
+      allRecommendations.find((rec) => rec.id === activeRecommendationId) ??
+      allRecommendations[0] ??
+      null,
+    [allRecommendations, activeRecommendationId],
+  );
+
   const saveLook = useCallback(
     async (recommendation: OutfitRecommendation) => {
       if (!selectedToken) return;
@@ -228,12 +261,13 @@ export function useStylingStudio() {
         base_slot: baseSlot,
         occasion,
         recommendation,
+        ...(selectedBelt.hex ? { belt: selectedBelt } : {}),
       };
       await lookStorage.saveLook(look);
       const updated = await lookStorage.listSavedLooks();
       setSavedLooks(updated);
     },
-    [selectedToken, baseSlot, occasion, lookStorage],
+    [selectedToken, baseSlot, occasion, selectedBelt, lookStorage],
   );
 
   const deleteSavedLook = useCallback(
@@ -268,6 +302,13 @@ export function useStylingStudio() {
     aiStatus,
     sourceFilter,
     setSourceFilter,
+    activeRecommendationId,
+    setActiveRecommendationId,
+    activeRecommendation,
+    selectedSkinTone,
+    setSelectedSkinTone,
+    selectedBelt,
+    setSelectedBelt,
     savedLooks,
     savedLookIds,
     isDrawerOpen,

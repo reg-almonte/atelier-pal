@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { CheckCircle2, RefreshCw, Terminal, X, XCircle } from 'lucide-react';
 import type { AIStatus } from '../../domain/models';
 
@@ -14,12 +15,26 @@ export function OllamaSetupModal({
   onClose,
   onRefresh,
 }: OllamaSetupModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const isConnected = aiStatus?.available ?? false;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Local AI Stylist Status"
+    >
       <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
@@ -35,6 +50,7 @@ export function OllamaSetupModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close AI Status Modal"
             className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
           >
             <X className="h-4 w-4" />
