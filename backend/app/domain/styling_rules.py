@@ -87,21 +87,53 @@ def _build_items(
     secondary_token: ColorToken,
     accent_token: ColorToken,
     locked_slots: dict[GarmentSlot, ColorToken],
+    palette: Sequence[ColorToken],
+    *,
+    include_outerwear: bool = False,
+    remix_seed: int = 0,
 ) -> tuple[OutfitItem, ...]:
-    primary_slot, mid_slot, small_slot = _slot_layout(base_slot)
-    ordered_slots = (primary_slot, mid_slot, small_slot)
-    proportions = (60, 30, 10)
+    has_outerwear = (
+        include_outerwear
+        or base_slot == GarmentSlot.OUTERWEAR
+        or GarmentSlot.OUTERWEAR in locked_slots
+    ) and base_slot not in {GarmentSlot.ACCESSORY, GarmentSlot.FULL_BODY}
 
-    # Assign base_token to base_slot; fill remaining slots with secondary & accent.
-    slot_tokens: dict[GarmentSlot, ColorToken] = {}
-    slot_tokens[base_slot] = base_token
+    if has_outerwear:
+        ordered_slots: tuple[GarmentSlot, ...] = (
+            GarmentSlot.BOTTOM,
+            GarmentSlot.TOP,
+            GarmentSlot.OUTERWEAR,
+            GarmentSlot.FOOTWEAR,
+        )
+        proportions: tuple[int, ...] = (45, 25, 20, 10)
+    else:
+        ordered_slots = _slot_layout(base_slot)
+        proportions = (60, 30, 10)
 
-    remaining_tokens = [secondary_token, accent_token]
+    slot_tokens: dict[GarmentSlot, ColorToken] = {base_slot: base_token}
     for slot in ordered_slots:
         if slot in locked_slots:
             slot_tokens[slot] = locked_slots[slot]
-        elif slot not in slot_tokens:
-            slot_tokens[slot] = remaining_tokens.pop(0)
+
+    used_ids = {tok.id for tok in slot_tokens.values()}
+    fallback_pool = [secondary_token, accent_token]
+    if has_outerwear:
+        outerwear_candidates = [
+            t
+            for t in palette
+            if t.is_neutral and t.id not in used_ids and _compatible_undertone(base_token, t)
+        ]
+        outerwear_token = _pick_candidate(outerwear_candidates, used_ids, remix_seed, palette)
+        fallback_pool.append(outerwear_token)
+
+    for slot in ordered_slots:
+        if slot not in slot_tokens:
+            next_tok = next(
+                (t for t in fallback_pool if t.id not in used_ids),
+                fallback_pool[0],
+            )
+            slot_tokens[slot] = next_tok
+            used_ids.add(next_tok.id)
 
     items: list[OutfitItem] = []
     for slot, pct in zip(ordered_slots, proportions, strict=True):
@@ -284,7 +316,16 @@ def generate_computed_recommendations(
     recommendations: list[OutfitRecommendation] = []
     for strategy, builder in strategy_builders:
         secondary, accent, rationale = builder(base_token, palette, remix_seed)
-        items = _build_items(base_token, base_slot, secondary, accent, locked)
+        items = _build_items(
+            base_token,
+            base_slot,
+            secondary,
+            accent,
+            locked,
+            palette,
+            include_outerwear=strategy != RecommendationStrategy.CLASSIC,
+            remix_seed=remix_seed,
+        )
         rec_id = str(
             uuid5(
                 NAMESPACE_URL,

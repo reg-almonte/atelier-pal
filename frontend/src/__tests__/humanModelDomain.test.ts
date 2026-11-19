@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   BELT_PALETTE,
+  FEMALE_STYLE_LABELS,
   getRelativeLuminance,
   isLightSkinTone,
+  MODEL_SILHOUETTE_LABELS,
   SKIN_TONES,
 } from '../domain/models';
 
@@ -38,5 +40,16 @@ describe('Human Model Stage Domain Helpers & Constants', () => {
     expect(isLightSkinTone(medium.hex)).toBe(true);
     expect(isLightSkinTone(deepBrown.hex)).toBe(false);
     expect(isLightSkinTone(black.hex)).toBe(false);
+  });
+
+  it('defines labels for Male/Female silhouettes and Female Trousers/Skirt styles', () => {
+    expect(MODEL_SILHOUETTE_LABELS).toEqual({
+      male: 'Male',
+      female: 'Female',
+    });
+    expect(FEMALE_STYLE_LABELS).toEqual({
+      trousers: 'Trousers',
+      skirt: 'Skirt',
+    });
   });
 });

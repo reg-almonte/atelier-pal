@@ -53,6 +53,9 @@ export function App() {
 
           <HumanModelStage
             recommendation={studio.activeRecommendation}
+            palette={studio.palette}
+            selectedModel={studio.selectedModel}
+            femaleStyle={studio.femaleStyle}
             selectedSkinTone={studio.selectedSkinTone}
             selectedBelt={studio.selectedBelt}
             isSaved={
@@ -62,7 +65,16 @@ export function App() {
             }
             activeSlot={studio.activeSlot}
             lockedSlots={studio.lockedSlots}
+            onSelectModel={studio.setSelectedModel}
+            onSelectFemaleStyle={studio.setFemaleStyle}
             onSelectSlot={studio.setActiveSlot}
+            onSelectOuterwear={(token) => {
+              if (token) {
+                studio.toggleLockSlot('outerwear', token.id);
+              } else if (studio.lockedSlots.outerwear) {
+                studio.unlockSlot('outerwear');
+              }
+            }}
             onSelectSkinTone={studio.setSelectedSkinTone}
             onSelectBelt={studio.setSelectedBelt}
             onSave={studio.saveLook}

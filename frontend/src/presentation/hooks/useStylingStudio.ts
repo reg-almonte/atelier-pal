@@ -7,7 +7,9 @@ import {
   type BeltOption,
   type ColorMatchResult,
   type ColorToken,
+  type FemaleBottomStyle,
   type GarmentSlot,
+  type ModelSilhouette,
   type Occasion,
   type OutfitRecommendation,
   type SavedLook,
@@ -17,6 +19,29 @@ import { ApiClientError, FastApiHttpClient } from '../../infrastructure/api/Fast
 import { IndexedDBLookRepository } from '../../infrastructure/indexeddb/IndexedDBLookRepository';
 
 export type SourceFilter = 'all' | 'math_engine' | 'ollama_ai';
+
+const STORAGE_KEY_MODEL = 'atelier-pal:model-silhouette';
+const STORAGE_KEY_FEMALE_STYLE = 'atelier-pal:female-style';
+
+function readStoredModel(): ModelSilhouette {
+  try {
+    const val = window.localStorage.getItem(STORAGE_KEY_MODEL);
+    if (val === 'female' || val === 'male') return val;
+  } catch {
+    // Ignore storage errors in restricted environments
+  }
+  return 'male';
+}
+
+function readStoredFemaleStyle(): FemaleBottomStyle {
+  try {
+    const val = window.localStorage.getItem(STORAGE_KEY_FEMALE_STYLE);
+    if (val === 'skirt' || val === 'trousers') return val;
+  } catch {
+    // Ignore storage errors in restricted environments
+  }
+  return 'trousers';
+}
 
 export const BUILDABLE_SLOTS: GarmentSlot[] = [
   'top',
@@ -67,8 +92,28 @@ export function useStylingStudio() {
 
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [activeRecommendationId, setActiveRecommendationId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModelState] = useState<ModelSilhouette>(readStoredModel);
+  const [femaleStyle, setFemaleStyleState] = useState<FemaleBottomStyle>(readStoredFemaleStyle);
   const [selectedSkinTone, setSelectedSkinTone] = useState<SkinTone>(SKIN_TONES[4]);
   const [selectedBelt, setSelectedBelt] = useState<BeltOption>(BELT_PALETTE[0]);
+
+  const setSelectedModel = useCallback((model: ModelSilhouette) => {
+    setSelectedModelState(model);
+    try {
+      window.localStorage.setItem(STORAGE_KEY_MODEL, model);
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const setFemaleStyle = useCallback((style: FemaleBottomStyle) => {
+    setFemaleStyleState(style);
+    try {
+      window.localStorage.setItem(STORAGE_KEY_FEMALE_STYLE, style);
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
   const [savedLooks, setSavedLooks] = useState<SavedLook[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isOllamaModalOpen, setIsOllamaModalOpen] = useState<boolean>(false);
@@ -380,13 +425,15 @@ export function useStylingStudio() {
         base_slot: baseSlot,
         occasion,
         recommendation,
+        model_silhouette: selectedModel,
+        ...(selectedModel === 'female' ? { female_style: femaleStyle } : {}),
         ...(selectedBelt.hex ? { belt: selectedBelt } : {}),
       };
       await lookStorage.saveLook(look);
       const updated = await lookStorage.listSavedLooks();
       setSavedLooks(updated);
     },
-    [selectedToken, baseSlot, occasion, selectedBelt, lookStorage],
+    [selectedToken, baseSlot, occasion, selectedModel, femaleStyle, selectedBelt, lookStorage],
   );
 
   const deleteSavedLook = useCallback(
@@ -428,6 +475,10 @@ export function useStylingStudio() {
     setActiveRecommendationId,
     selectRecommendation,
     activeRecommendation,
+    selectedModel,
+    setSelectedModel,
+    femaleStyle,
+    setFemaleStyle,
     selectedSkinTone,
     setSelectedSkinTone,
     selectedBelt,

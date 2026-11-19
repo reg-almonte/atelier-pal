@@ -78,6 +78,9 @@ export interface AIStatus {
   setup_instructions?: string | null;
 }
 
+export type ModelSilhouette = 'male' | 'female';
+export type FemaleBottomStyle = 'trousers' | 'skirt';
+
 export interface SkinTone {
   name: string;
   hex: string;
@@ -96,6 +99,8 @@ export interface SavedLook {
   occasion: Occasion;
   recommendation: OutfitRecommendation;
   belt?: BeltOption;
+  model_silhouette?: ModelSilhouette;
+  female_style?: FemaleBottomStyle;
 }
 
 export interface WardrobeItem {
@@ -130,6 +135,16 @@ export const STRATEGY_LABELS: Record<RecommendationStrategy, string> = {
   contrast: 'Balanced Contrast',
   editorial: 'Editorial / Seasonal',
   ai_curated: 'AI Stylist Curated',
+};
+
+export const MODEL_SILHOUETTE_LABELS: Record<ModelSilhouette, string> = {
+  male: 'Male',
+  female: 'Female',
+};
+
+export const FEMALE_STYLE_LABELS: Record<FemaleBottomStyle, string> = {
+  trousers: 'Trousers',
+  skirt: 'Skirt',
 };
 
 export const SKIN_TONES: readonly SkinTone[] = [

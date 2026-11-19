@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { Calculator, Sparkles, Trash2, X } from 'lucide-react';
 import {
+  FEMALE_STYLE_LABELS,
   isComputedSource,
+  MODEL_SILHOUETTE_LABELS,
   OCCASION_LABELS,
   SLOT_LABELS,
   type SavedLook,
@@ -102,7 +104,7 @@ export function SavedLooksDrawer({
                     </button>
                   </div>
 
-                  <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-600">
                     <span
                       className="h-3.5 w-3.5 rounded-full border border-stone-300"
                       style={{ backgroundColor: look.base_token.hex }}
@@ -114,6 +116,17 @@ export function SavedLooksDrawer({
                     <span>{SLOT_LABELS[look.base_slot]}</span>
                     <span>·</span>
                     <span>{OCCASION_LABELS[look.occasion]}</span>
+                    {look.model_silhouette && (
+                      <>
+                        <span>·</span>
+                        <span className="rounded bg-stone-200/70 px-1.5 py-0.5 text-[10px] font-medium text-stone-700">
+                          {MODEL_SILHOUETTE_LABELS[look.model_silhouette]}
+                          {look.model_silhouette === 'female' && look.female_style
+                            ? ` · ${FEMALE_STYLE_LABELS[look.female_style]}`
+                            : ''}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-2.5 flex h-3 overflow-hidden rounded-full border border-stone-200">

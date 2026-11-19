@@ -12,20 +12,33 @@ A local-first **Personal Styling Companion** built with **Strict Hexagonal Archi
 
 ## Quickstart
 
-### 1. Backend Setup (`uv`)
+### Unified Setup & Run (Recommended)
 
-```bash
-cd backend
-cp .env.example .env
-uv sync
-uv run uvicorn app.main:app --reload --port 8000
-```
+Run both the backend and frontend from a single terminal using the root [package.json](package.json) (`concurrently`):
 
-Verify the API is running:
+1. Copy the backend environment file (first time only):
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+2. Install root, backend (`uv`), and frontend (`npm`) dependencies:
+   ```bash
+   npm run setup
+   ```
+3. Start both servers together (`API` on port `8000`, `WEB` on port `5173`):
+   ```bash
+   npm run dev
+   ```
+
+Open `http://localhost:5173` (Vite proxies `/api/v1` requests to `http://localhost:8000`).
 - Health: `GET http://localhost:8000/api/v1/health`
 - OpenAPI Docs: `http://localhost:8000/docs`
 
-### 2. Local AI Setup (`Ollama`)
+Other root scripts:
+- `npm run dev:backend` / `npm run dev:frontend` — Run either service individually
+- `npm test` — Run backend (`pytest`) and frontend (`vitest`) test suites
+- `npm run lint` — Run backend (`ruff`) and frontend TypeScript/Vite build checks
+
+### Local AI Setup (`Ollama`)
 
 Install [Ollama](https://ollama.com/) and pull the default model configured in `backend/.env`:
 
@@ -36,15 +49,24 @@ ollama pull llama3.2
 
 If `llama3.2` is not installed, `GET /api/v1/system/ai-status` will automatically fall back to another locally installed model if available, or return exact setup instructions.
 
-### 3. Frontend Setup (`npm`)
+### Manual / Individual Service Setup
+
+#### Backend (`uv`)
+
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+#### Frontend (`npm`)
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-Open `http://localhost:5173`. Vite proxies `/api/v1` requests to `http://localhost:8000`.
 
 ---
 
